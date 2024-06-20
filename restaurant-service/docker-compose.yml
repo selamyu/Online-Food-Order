@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  eureka-service:
+    image: tesfaway/registry-service:latest
+    container_name: eureka-service
+    ports:
+      - "8761:8761"
+    networks:
+      - microservices-network
+
+  restaurant-service:
+    image: tesfaway/restaurant-service:latest
+    container_name: restaurant-service
+    ports:
+      - "4040:4040"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/restaurant_db
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-service:8761/eureka/
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_ZIPKIN_BASEURL=http://zipkin:9411
+    depends_on:
+      - mysql
+      - eureka-service
+      - rabbitmq
+      - zipkin
+
+    networks:
+      - microservices-network
+
+  order-service:
+    image: tesfaway/order-service:latest
+    container_name: order-service
+    ports:
+      - "4041:4041"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/order_db
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-service:8761/eureka/
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_ZIPKIN_BASEURL=http://zipkin:9411
+    depends_on:
+      - mysql
+      - eureka-service
+      - rabbitmq
+      - zipkin
+      - restaurant-service
+    networks:
+      - microservices-network
+
+  review-service:
+    image: tesfaway/review-service:latest
+    container_name: review-service
+    ports:
+      - "4042:4042"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/review_db
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-service:8761/eureka/
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_ZIPKIN_BASEURL=http://zipkin:9411
+    depends_on:
+      - mysql
+      - eureka-service
+      - rabbitmq
+      - zipkin
+      - restaurant-service
+    networks:
+      - microservices-network
+
+  api-gateway-service:
+    image: tesfaway/api-gateway:latest
+    container_name: api-gateway-service
+    ports:
+      - "4043:4043"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-service:8761/eureka/
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_ZIPKIN_BASEURL=http://zipkin:9411
+    depends_on:
+      - eureka-service
+      - rabbitmq
+      - zipkin
+    networks:
+      - microservices-network
+
+  mysql:
+      image: mysql
+      container_name: mysql
+      environment:
+#        MYSQL_ROOT_PASSWORD: rootpassword
+        MYSQL_DATABASE: restaurant_db
+        MYSQL_USER: root
+        MYSQL_PASSWORD: root
+      ports:
+        - "3307:3306"
+      networks:
+        - microservices-network
+
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - microservices-network
+
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - microservices-network
+
+networks:
+  microservices-network:
+    driver: bridge
